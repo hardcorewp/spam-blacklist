@@ -18,7 +18,7 @@ add_action( 'plugins_loaded', array( 'HardcoreWP_Spam_Blacklist', '_plugins_load
  * Class HardcoreWP_Spam_Blacklist
  */
 class HardcoreWP_Spam_Blacklist {
-  const POST_TYPE = 'hcwp_spam_blacklists';
+  const POST_TYPE = 'hcwp_spam_blacklist';
 
   /**
    * @var HardcoreWP_Spam_Blacklist

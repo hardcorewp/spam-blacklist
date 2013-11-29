@@ -4,7 +4,7 @@ HardcoreWP Spam Blacklist
 _HardcoreWP Spam Blacklist_ provides aggressive [blacklist](http://en.wikipedia.org/wiki/Blacklist_(computing) functionality combined with [whitelists](http://en.wikipedia.org/wiki/Whitelist) by **blocking** comments _(rather than marking them as spam)_, and it works in conjunction with other plugins like [Akismet](http://akismet.com/) that tag comments as spam.
 
 ##Upon Plugin Activation
-Upon activation this plugin creates a post type (`'hcwp_spam_blacklists'`) to contain a set of spam _"control lists"_ for the various blacklists and whitelists it uses and it adds those to the admin menu underneath the Settings menu. The various control lists for each of the two (2) list types currently are:
+Upon activation this plugin creates a post type (`'hcwp_spam_blacklist'`) to contain a set of spam _"control lists"_ for the various blacklists and whitelists it uses and it adds those to the admin menu underneath the Settings menu. The various control lists for each of the two (2) list types currently are:
 - author
 - IP
 - email, and 
