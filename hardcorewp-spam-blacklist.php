@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: @HardcoreWP Spam Backlist
- * Description: Provides an aggressive blacklist and whitelist for comment spam. Upon activation it creates a Spam Control Lists post type ('hcwp_spam_control_list') to contains the various blacklist and whitelists. The various control lists are author, IP, email and URL for each of the two list types and upon activation it scans all the comment spam and for each type author, IP, email and URL occurs more than 3 times in spam it loads the the associated blacklist. Then when a comment is submitted containing any blacklisted value it displays a page explain to the user they have been blacklisted and asks them to email the site admin with the details shown in an HTML &lt;textarea&gt; by the plugin so they can be whitelisted, and it presents their comment in another &lt;textarea&gt; that they can copy and save it locally to post later. In the next version it will initilize the whitelists with all approved posters.
+ * Plugin Name: HardcoreWP Spam Backlist
+ * Description: <em>HardcoreWP Spam Blacklist</em> provides aggressive <a target="_blank" href="http://en.wikipedia.org/wiki/Blacklist_(computing">blacklist</a> functionality combined with <a target="_blank" href="http://en.wikipedia.org/wiki/Whitelist">whitelists</a> by <strong>blocking</strong> comments <em>(rather than marking them as spam)</em>, and it works in conjunction with other plugins like <a target="_blank" href="http://akismet.com/">Akismet</a> that tag comments as spam. To learn more, <a target="_blank" href="https://github.com/hardcorewp/spam-blacklist"><strong>see our README</strong></a> on GitHub.
  * Plugin URI: http://github.com/hardcorewp/spam-blacklist
  * Author: HardcoreWP (Mike Schinkel)
  * Author Email: mike@newclarity.net
@@ -18,7 +18,7 @@ add_action( 'plugins_loaded', array( 'HardcoreWP_Spam_Blacklist', '_plugins_load
  * Class HardcoreWP_Spam_Blacklist
  */
 class HardcoreWP_Spam_Blacklist {
-  const POST_TYPE = 'hcwp_spam_control_lists';
+  const POST_TYPE = 'hcwp_spam_blacklists';
 
   /**
    * @var HardcoreWP_Spam_Blacklist
@@ -31,7 +31,16 @@ class HardcoreWP_Spam_Blacklist {
   private static $_control_lists;
 
   static function on_load() {
-    register_activation_hook( __FILE__, array( __CLASS__, '_activate' ) );
+    /*
+     * The following two (2) lines of ugliness it so that we can symlink our plugin and still get it to work.
+     *
+     * If symlinked then /wp-content/ must be under ABSPATH and /plugins/ under /wp-content/.
+     *
+     * MY KINGDOM to see this commited to WordPress core: http://core.trac.wordpress.org/ticket/16953!!!
+     */
+    $slug = preg_replace( '#^(.+?)\.php$#', '$1', basename( __FILE__ ) );
+    $file = 1 == substr_count( plugin_basename( __FILE__ ), '/' ) ? __FILE__ : ABSPATH . "wp-content/plugins/{$slug}/{$slug}.php";
+    register_activation_hook( $file, array( __CLASS__, '_activate' ) );
   }
 
   /**
@@ -57,15 +66,15 @@ class HardcoreWP_Spam_Blacklist {
     add_action( 'pre_comment_on_post', array( $this, '_pre_comment_on_post' ) );
   }
   /**
-   *
+   * @see http://codex.wordpress.org/Data_Validation#HTML.2FXML_Fragments
    */
   static function _pre_comment_on_post( $post_id ) {
     $comment_info = array(
       'author'          => self::_get_POST( 'author' ),
-      'author-email'    => self::_get_POST( 'email' ),
-      'author-url'      => urldecode( self::_get_POST( 'url' ) ),
+      'author-email'    => sanitize_email( self::_get_POST( 'email' ) ),
+      'author-url'      => esc_url_raw( urldecode( self::_get_POST( 'url' ) ) ),
       'author-ip'       => $_SERVER['REMOTE_ADDR'],
-      'comment'         => self::_get_POST( 'comment' ),
+      'comment'         => wp_kses_data( self::_get_POST( 'comment' ) ),
     );
     if ( ! self::_in_control_list( 'white', $comment_info ) ) {
       if ( self::_in_control_list( 'black', $comment_info ) ) {
@@ -125,14 +134,13 @@ HTML;
     } else {
       echo '<h2>' . get_the_title() . ' ' . get_the_title( $post->post_parent )  . '</h2>';
       if ( is_numeric( strpos( $post->post_name, 'whitelist' ) ) ) {
-        $list_type = __( 'whitelist', 'hardcorewp' );
+        $list_type = __( 'whitelisted', 'hardcorewp' );
         $action = __( 'approved', 'hardcorewp' );
       } else {
-        $list_type = __( 'blacklist', 'hardcorewp' );
+        $list_type = __( 'blacklisted', 'hardcorewp' );
         $action = __( 'denied', 'hardcorewp' );
       }
       $message = __( '<p>Enter <strong>%ss</strong> for the %s, one per line.<p></p>Any %ss attempting to comment will be automatically %s.</p>', 'hardcorewp' );
-      $action = is_numeric( strpos( $post->post_type, 'whitelist' ) ) ? __( 'whitelisted', 'hardcorewp' ) : __( 'blacklisted', 'hardcorewp' );
       printf( $message, strtolower( $post->post_title ), $list_type, strtolower( $post->post_title ), $action );
       echo '<br/><textarea rows="25" cols="60" name="content" style="margin-left:3em;">';
       echo $post->post_content;
@@ -204,7 +212,7 @@ HTML;
    *
    */
   function _init_0() {
-    register_post_type( HardcoreWP_Spam_Blacklist::POST_TYPE, array(
+    register_post_type( self::POST_TYPE, array(
       'label'               => __( 'Spam Blacklists', 'hardcorewp' ),
       'description'         => __( 'Spam Blacklists and Whitelists for Comments', 'hardcorewp' ),
       'labels'              => array(
@@ -223,7 +231,7 @@ HTML;
         'not_found_in_trash'  => __( 'No spam control lists found in Trash', 'hardcorewp' ),
       ),
       'supports'            => array( null ),
-      'taxonomies'          => array( 'hcwp_spam_marker_type' ),
+      'taxonomies'          => array( /* 'hcwp_spam_marker_type' */ ),
       'hierarchical'        => true,
       'public'              => false,
       'show_ui'             => true,
@@ -381,7 +389,7 @@ SQL;
       $control_lists = array();
       $control_index = array();
       if ( $rows = $wpdb->get_results( $wpdb->prepare( $sql, self::POST_TYPE ) ) ) {
-        foreach( $rows as $index => $row ) {
+        foreach( $rows as $row ) {
           if ( 0 == $row->post_parent ) {
             $row->lists = array();
             $list_type = preg_replace( '#^spam-(.*?)$#', '$1', $row->post_name );
@@ -425,7 +433,6 @@ SQL;
     $values = $wpdb->get_col( $sql );
     return implode( "\n", $values ) . "\n";
   }
-
 
 }
 HardcoreWP_Spam_Blacklist::on_load();
